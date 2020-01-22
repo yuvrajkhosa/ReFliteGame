@@ -149,6 +149,7 @@
     <ClInclude Include="Laser.h" />
     <ClInclude Include="Launcher.h" />
     <ClInclude Include="Level.h" />
+    <ClInclude Include="Main.h" />
     <ClInclude Include="Surface.h" />
     <ClInclude Include="Trail.h" />
     <ClInclude Include="Vector.h" />

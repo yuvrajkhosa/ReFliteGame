@@ -13,13 +13,14 @@
 #include <ctime>
 #include "Key.h"
 #include "Endpoint.h"
+#include "Main.h"
 
 const int surfaceRotateSpeed = 1;
 bool gameStarted = false;
 bool firstTime = true;
 bool gotKey = false;
 bool gameWon = false;
-
+bool inEditorMode = true;
 
 Vector mouseVector(0.0f, 0.0f);
 sf::VertexArray Trail::lines;
@@ -30,7 +31,7 @@ std::vector<Surface> planes;
 float Surface::length = 100.0f;
 float Surface::width = 20.0f;
 float Surface::amountToAdd = atan(Surface::width / Surface::length);//Static members of a class must be defined outside of main function.
-sf::Texture texture;
+sf::Text winnerTexture;
 enum GAMESTATE {mainMenu, inGame};
 GAMESTATE state = inGame;
 
@@ -43,10 +44,10 @@ int main() {
 
 	sf::Font font;
 	font.loadFromFile("Splatch.ttf");
-	sf::Text text("WINNER", font);
-	text.setCharacterSize(30);
-	text.setStyle(sf::Text::Bold);
-	text.setPosition(sf::Vector2f(500.0f, 400.0f));
+	sf::Text winnerText("WINNER", font, 30);
+	winnerText.setPosition(sf::Vector2f(500.0f, 400.0f));
+	sf::Text inEditorModeText("", font, 10);
+	inEditorModeText.setPosition(sf::Vector2f(100.0f, 50.0f));
 	std::clock_t t1;
 	t1 = clock();
 	sf::ContextSettings settings;
@@ -105,21 +106,28 @@ int main() {
 					gameStarted = false;
 					gotKey = false;
 					gameWon = false;
-
-
+				}
+				else if (evnt.key.code == sf::Keyboard::E) {
+					inEditorMode = !inEditorMode;//Toggle between editor modes
+					if (inEditorMode) { inEditorModeText.setString("EDITOR MODE"); }
+					else { inEditorModeText.setString(""); }
 				}
 
 				break;
 			case(sf::Event::MouseButtonPressed):
-				std::cout << (clock() - t1) / (double)CLOCKS_PER_SEC * 1000 << std::endl;
+				/*std::cout << (clock() - t1) / (double)CLOCKS_PER_SEC * 1000 << std::endl;*/
 				if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left)) {
-					//planes.push_back(Surface(sf::Mouse::getPosition(window).x, sf::Mouse::getPosition(window).y, 90.0f));
-					//std::cout << "New Plane at X: " << sf::Mouse::getPosition(window).x << " Y: " << sf::Mouse::getPosition(window).y << std::endl;
-					if (!gameStarted) {
-						Beam = Laser(launcher.pos.x + 40.0f, launcher.pos.y + 40.0f);//40.0f is launcher width / 2
-						Beam.setAngle(launcher.angle + 180.0f, launcher.pos.x + 40.0f, launcher.pos.y + 40.0f);
-						firstTime = false;
-						gameStarted = true;
+					if (inEditorMode) {
+						planes.push_back(Surface(sf::Mouse::getPosition(window).x, sf::Mouse::getPosition(window).y, 90.0f, true));
+					}
+					else {
+						//std::cout << "New Plane at X: " << sf::Mouse::getPosition(window).x << " Y: " << sf::Mouse::getPosition(window).y << std::endl;
+						if (!gameStarted) {
+							Beam = Laser(launcher.pos.x + 40.0f, launcher.pos.y + 40.0f);//40.0f is launcher width / 2
+							Beam.setAngle(launcher.angle + 180.0f, launcher.pos.x + 40.0f, launcher.pos.y + 40.0f);
+							firstTime = false;
+							gameStarted = true;
+						}
 					}
 				}
 
@@ -132,6 +140,7 @@ int main() {
 		window.clear(sf::Color::Black);
 
 		if(state == inGame){
+			
 			if (gameStarted) {
 				trail.getBeamPos(Beam);
 				if (key.checkCollision(Beam)) {
@@ -170,13 +179,16 @@ int main() {
 				window.draw(launcher.shapeArr[i]);
 			}
 		}
-		
-		
-		//Display Text
+		//Display winnerText
 		if (gameWon) {
-			window.draw(text);
+			window.draw(winnerText);
 		}
-
+		else if(state == mainMenu){
+			//Display Main Menu Stuff
+		}
+		
+		
+		window.draw(inEditorModeText);
 		window.display();//Display the window
 
 	}
