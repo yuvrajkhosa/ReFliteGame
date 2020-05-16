@@ -8,8 +8,10 @@ public:
 	Key() = default;
 	sf::RectangleShape shape;
 	sf::Texture texture;
+	float length;
 	bool checkCollision(Laser& l);
 	Vector pos;
 	void applyTexture();
+	void updateSprite();
 };
 

@@ -11,13 +11,13 @@ Launcher::Launcher(float x, float y) {
 	pos.x = x;
 	pos.y = y;
 
-	launcherShape.setSize(sf::Vector2f(launcherLength, launcherLength));//500
+	launcherShape.setSize(sf::Vector2f((float)launcherLength, (float)launcherLength));//500
 	launcherShape.setPosition(x, y);
 	
 	barrel.setSize(sf::Vector2f(100.0f, 20.0f));
 	barrel.setOrigin(100.0f, 10.0f);
 	barrel.setPosition(x + 40.0f, y + 40.0f);
-	barrel.setFillColor(sf::Color(133, 133, 133, 255));
+	barrel.setFillColor(sf::Color(255, 133, 133, 255));
 	shapeArr[0] = barrel;
 	shapeArr[1] = launcherShape;
 }
@@ -46,3 +46,7 @@ void Launcher::applyTexture() {
 	
 }
 
+void Launcher::updateSprite() {
+	shapeArr[0].setPosition(pos.x + launcherLength / 2, pos.y + launcherLength / 2);
+	shapeArr[1].setPosition(pos.x, pos.y);
+}

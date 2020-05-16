@@ -15,7 +15,6 @@ public:
 	std::clock_t timer;
 	bool alreadyChecked;
 	bool isOppositeSide;
-	
 	Vector pos;
 	float angle;
 	bool rotatable;

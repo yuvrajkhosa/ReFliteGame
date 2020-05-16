@@ -133,6 +133,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Button.cpp" />
     <ClCompile Include="Endpoint.cpp" />
     <ClCompile Include="Key.cpp" />
     <ClCompile Include="Laser.cpp" />
@@ -144,6 +145,7 @@
     <ClCompile Include="Vector.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Button.h" />
     <ClInclude Include="Endpoint.h" />
     <ClInclude Include="Key.h" />
     <ClInclude Include="Laser.h" />

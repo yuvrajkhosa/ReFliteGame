@@ -15,5 +15,6 @@ public:
 	Vector pos;
 	void setAngle(float mouseX, float mouseY);
 	void applyTexture();
+	void updateSprite();
 	float angle = 0.0f;
 };

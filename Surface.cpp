@@ -11,7 +11,7 @@ Surface::Surface(float _x, float _y, float _angle, bool rotate)
 	plane.setSize(sf::Vector2f(length, width));
 	plane.setFillColor(sf::Color::White);
 	plane.setOrigin(length / 2, width / 2);
-	plane.setFillColor(rotatable ? sf::Color(255, 255, 255, 150) : sf::Color(150, 255, 150, 150));//If rotatable make color to white, otherwise make color to aqua white
+	plane.setFillColor(rotatable ? sf::Color(66, 245, 236) : sf::Color(255, 255, 255, 150));//If rotatable make color to white, otherwise make color to aqua white
 	updatePoints();
 	point1.setRadius(6.0f);
 	point1.setOrigin(0.0f, 0.0f);
@@ -32,7 +32,7 @@ void Surface::updatePoints() {
 }
 
 float* Surface::getPoints(float angle) {
-	angle -= 1.5708f;
+	angle -= 1.5708f;//This is 90 degrees in radians
 	float arr[2] = { (float)(cos(angle + amountToAdd) * sqrt((width * width) + (length * length))), (float)(sin(angle + amountToAdd) * sqrt((width * width) + (length * length))) };
 	return(arr);
 }
@@ -96,9 +96,8 @@ void Surface::checkCollision(Laser& other) {//IMPLEMENT TIMER SYSTEM WHERE ANOTH
 				//std::cout << "Reflection Angle: " << reflectionAngle << std::endl;
 				
 				//std::cout << "Then 360 + " << reflectionAngle << " = " << 360 + reflectionAngle << " - 180 = " << 360 + reflectionAngle - 180 << std::endl;
-				other.setAngle(360 + reflectionAngle - 180, other.pos.x, other.pos.y);//FINALLY THE RIGHT FORMULA. GOD DAMN.
+				other.setAngle(360.0f + reflectionAngle - 180.f, other.pos.x, other.pos.y);//FINALLY THE RIGHT FORMULA. GOD DAMN.
 
-				//other.setAngle((int)reflectionAngle % 360, other.pos.x, other.pos.y);
 				timer = clock();
 				alreadyChecked = true;
 				Trail::newVertex(other.pos.x, other.pos.y);
@@ -119,4 +118,6 @@ void Surface::checkCollision(Laser& other) {//IMPLEMENT TIMER SYSTEM WHERE ANOTH
 bool Surface::canRotate() {
 	return(rotatable ? true : false);
 }
+
+
 
