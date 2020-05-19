@@ -26,7 +26,7 @@ void Launcher::setAngle(float mouseX, float mouseY) {
 	float x = mouseX - pos.x - (launcherLength / 2);//Adjusting to make launcher the origin. Current origin at bottom left
 	float y = windowHeight - mouseY - (windowHeight - pos.y) + launcherLength / 2;//
 	Vector vec(x, y);
-	if (vec.y < 0) vec.y = 0;
+	if (vec.y < 0) vec.y = 0;//Cant have launcher look downwards
 	
 	//vec.print();
 	//cout << asin(vec.x / Vector::getMag(vec)) * 180.0f / 3.141515f << endl;

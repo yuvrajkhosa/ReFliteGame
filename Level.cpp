@@ -80,7 +80,7 @@ void Level::saveLevel() {
 	else {
 		std::ofstream levelFile(path.c_str());//Create new level.txt
 		for (unsigned int i = 0; i < planesPointer->size(); i++) {
-			char type = planesPointer->at(i).rotatable ? '0' : '1';
+			char type = planesPointer->at(i).rotatable ? '0' : '1';//Level syntax has 0 and 1 to tell if it is fixed or not
 			std::cout << planesPointer->at(i).pos.x << std::endl;
 			levelFile << type << " " << planesPointer->at(i).pos.x << " " << (float) planesPointer->at(i).pos.y << " " << planesPointer->at(i).angle << "\n";
 		}
