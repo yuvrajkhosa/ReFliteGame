@@ -27,13 +27,13 @@ Laser::Laser(float x, float y){
 	beam.setOrigin(2.5, 2.5);
 }
 
-void Laser::setAngle(int a, float _xBuffer, float _yBuffer){
+void Laser::setAngle(float a, float _xBuffer, float _yBuffer){
 	
 	xBuffer = _xBuffer;
 	yBuffer = _yBuffer;
 	radius = 2.0f; //Reset the length of the "triangle" since we have a new center point
 	//angle = ((a) * 3.14159f / 180.0f) ;//Convert to radians since WE are workin in degrees. Subtract 90.0f so we are aligned to Game Development compass system. 90 to the right
-	angle = (float) a;
+	angle = a;
 	//Trail::newVertex(beam.getPosition().x, beam.getPosition().y);
 	//std::cout << " | New angle of beam set to: " << a + 180 << std::endl << std::endl;// subtract 140 so it matches how I think about it
 }

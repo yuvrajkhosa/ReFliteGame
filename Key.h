@@ -10,6 +10,7 @@ public:
 	sf::Texture texture;
 	float length;
 	bool checkCollision(Laser& l);
+	bool isGotten = false;
 	Vector pos;
 	void applyTexture();
 	void updateSprite();

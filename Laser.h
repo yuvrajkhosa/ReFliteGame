@@ -19,7 +19,7 @@ public:
 	Laser() = default;
 	Laser(float x, float y);
 
-	void setAngle(int a, float _xBuffer, float _yBuffer);
+	void setAngle(float a, float _xBuffer, float _yBuffer);
 	void move();
 };
 

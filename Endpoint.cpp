@@ -8,6 +8,7 @@ Endpoint::Endpoint(float x, float y){
 	length = 30.0f;//Although this is parent's variable, we still have to initialize it in this class
 	shape.setSize(sf::Vector2f(length, length));
 
+
 }
 
 

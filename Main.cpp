@@ -1,7 +1,12 @@
 #include "SFML/Config.hpp"
 #include "SFML/Graphics.hpp"
 #include "SFML/Graphics/Text.hpp"
+
+#include <string>
 #include <iostream>
+#include <filesystem>
+#include <ctime>
+#include <vector>
 
 #include "Button.h"
 #include "Endpoint.h"
@@ -13,37 +18,62 @@
 #include "Surface.h"
 #include "Trail.h"
 #include "Vector.h"
-#include <ctime>
-#include <vector>
 
+//The timer() is always running :(
+void updateDisplayLevels(sf::Font* font);
+void applyTextures(bool onlyPlanes = false);//Define the function to apply the textures
+void changeScore();
 const int surfaceRotateSpeed = 1;//Constant to determine the mouse wheel rotation speed of surface
 bool gameStarted = false;//Whether laser has started moving
 bool firstTime = true;//
 bool displayUnsaveWarning = false;//If user tries closing window without saving unsaved work
-bool gotKey = false;//Whether key is obtained
+bool gotKeys = false;//Whether key is obtained
 bool gameWon = false;//If endpoint and key have been touched
 bool inEditorMode = false;//If editing
 bool isUnsaved = false;//Unsaved work
-const int buttonsLength = 1;//Length of buttons array
+bool displayLevels = false;
+bool levelSelected = false;
+bool typingNewLevel = false;
+bool removeLevelDoubleClicked = false;
+bool displayNoLevelSelected = false;
+bool displayMainHelp = false;
+bool displayEditorHelp = false;
+const int buttonsLength = 3;//Length of buttons array
 const int editingButtonsLength = 2;//Editing buttons array length
-
-//Buttons
-Button unsavedWorkText(500.0f, 400.0f, 405.0f, 135.0f, "unsaved");
-Button buttons[buttonsLength] = { Button(500.0f, 400.0f, 300.0f, 100.0f, std::string("playBtn")) };
-Button editingButtons[editingButtonsLength] = { Button(50.0f, 350.0f, 100.0f, 500.0f, std::string("editingButtons")),  Button(150.0f, 130.0f, 60.0f, 40.0f, std::string("arrow")) };
-
-//Enum type thing to see which object is being used in editor mode
-int currentEditingObject = 0;//SurfaceF = 0, SurfaceFixed = 1,Launcher = 2, Key = 3, Endpoint = 4
+const int cursorObjectLength = 5;
+const float arrowXPosition = 140.0f;
+int keysGotten = 0;
 Vector mouseVector(0.0f, 0.0f);//Used to calculate position of mouse when a surface is being rotated to see which surface to affect
 sf::VertexArray Trail::lines;//Array of laser trail
 int Laser::laserSpeed = 3;//Speed at which laser moves
 
 int windowWidth = 1000;
 int windowHeight = 800;
+int score = 0;
 
+std::string newLevelString;
+int isDisplayingSaved = false;
 std::vector<Surface> planes;//Vector of surfaces
 float Surface::length = 100.0f;//Size of the surface
 float Surface::width = 20.0f;
+std::vector<Key> keys;
+
+//Buttons
+std::vector<Button> levelsVector;
+Button mainHelpButton(500.0f, 400.0f, 600.0f, 400.0f, "gameInstructions");
+Button editorHelpButton(500.0f, 400.0f, 600.0f, 400.0f, "editorInstruction");
+Button typingLevelTextButton(450.0f, 150.0f, 100.0f, 50.0f, "");
+Button scoreText(50.0f, 50.0f, 70.0f, 50.0f, "0");
+Button newLevelBtn(500.0f, 200.0f, 100.0f, 50.0f, "New Level");
+Button noLevelSelectedButton(500.0f, 450.0f, 405.0f, 135.0f, "noLevelSelected");
+Button unsavedWorkText(500.0f, 400.0f, 405.0f, 135.0f, "unsaved");
+Button buttons[buttonsLength] = { Button(500.0f, 400.0f, 300.0f, 100.0f, std::string("playBtn")), Button(500.0f, 550.0f, 300.0f, 100.0f, std::string("editBtn")), Button(500.0f, 680.0f, 300.0f, 100.0f, std::string("selectLevelBtn")) };
+Button editingButtons[editingButtonsLength] = { Button(80.0f, 350.0f, 160.0f, 500.0f, std::string("editingButtons")),  Button(180.0f, 130.0f, 60.0f, 40.0f, std::string("arrow")) };
+Button cursorObject[cursorObjectLength] = {Button(0.0f, 0.0f, Surface::length, Surface::width, "surfaceF"), Button(0.0f, 0.0f, Surface::length, Surface::width, "surfaceR"), 
+											Button(0.0f, 0.0f, 80.0f, 80.0f, "emitter"), Button(0.0f, 0.0f, 30.0f, 30.0f, "key"), Button(0.0f, 0.0f, 30.0f, 30.0f, "target") };
+//Enum type thing to see which object is being used in editor mode
+int currentEditingObject = 0;//SurfaceF = 0, SurfaceFixed = 1,Launcher = 2, Key = 3, Endpoint = 4
+
 
 float Surface::amountToAdd =
 atan(Surface::width / Surface::length); // Static members of a class must be
@@ -54,48 +84,56 @@ enum GAMESTATE state = mainMenu;//State to start the game in
 
 Launcher launcher;
 Laser Beam;
-Key key;
 Endpoint endPoint;
+Level l;
 
 int main() {
+	sf::Font font;
+	font.loadFromFile("font.ttf");
+
 	//buttons.emplace_back(playButton);
 	//buttons.emplace_back(importButton);
+	typingLevelTextButton.applyTexture(&font);
+	newLevelBtn.applyTexture(&font);
+	scoreText.applyTexture(&font);
+	sf::Text winnerText("WINNER", font, 42);
+	winnerText.setPosition(sf::Vector2f(300.0f, 400.0f));
 
-	sf::Font font;
-	font.loadFromFile("Splatch.ttf");
 
-	sf::Text winnerText("WINNER", font, 30);
-	winnerText.setPosition(sf::Vector2f(500.0f, 400.0f));
+	sf::Text saveTooltip("DOUBLE TAP 'S' TO SAVE LEVEL!", font, 10);
+	saveTooltip.setPosition(sf::Vector2f(750.0f, 780.0f));
 
-	sf::Text inEditorModeText("", font, 10);
-	inEditorModeText.setPosition(sf::Vector2f(10.0f, 10.0f));
-
-	sf::Text titleText("REFLITE", font, 64);
-	titleText.setPosition(sf::Vector2f((float)windowWidth / 3.0f, (float)windowHeight / 8.0f));
 
 	std::clock_t timer = clock();
 
 	sf::ContextSettings settings;
-	settings.antialiasingLevel = 8;
+	settings.antialiasingLevel = 16;
 	sf::RenderWindow window(sf::VideoMode(windowWidth, windowHeight), "ReFlite",
 		sf::Style::Close | sf::Style::Titlebar, settings);
 	window.setFramerateLimit(120);
 	Trail trail;
+	
+	
 
-	Level l("level.txt");
-	key.applyTexture();
+	/*key.applyTexture();//Since we recreate the level everytime a new one is selected, we must apply the texture each time.
 	endPoint.applyTexture();
-	launcher.applyTexture();
+	launcher.applyTexture();*/
+	mainHelpButton.applyTexture();
+	editorHelpButton.applyTexture();
 	unsavedWorkText.applyTexture();
+	noLevelSelectedButton.applyTexture();
 	for (int i = 0; i < buttonsLength; i++) {//Apply the sprites to all the buttons
 		buttons[i].applyTexture();
 	}
 	for (int i = 0; i < editingButtonsLength; i++) {
 		editingButtons[i].applyTexture();
 	}
-	for (int i = 0; i < (int)planes.size(); i++) {
-		std::cout << planes.at(i).pos.x << ", " << planes.at(i).pos.y << std::endl;
+	for (int i = 0; i < cursorObjectLength; i++) {
+		cursorObject[i].applyTexture();
 	}
+	
+
+	
 
 	while (window.isOpen()) { // Game Loop. Similar to functino draw()
 	  // Window.isOpen is window. because we made a
@@ -112,12 +150,12 @@ int main() {
 				}
 
 				break;
-			case sf::Event::MouseWheelMoved:
+			case(sf::Event::MouseWheelMoved):
 				// Plane.angle++;
 				mouseVector.x = static_cast<float>(sf::Mouse::getPosition(window).x);//Get a vector of mouse location too see which plane is being rotated
 				mouseVector.y = static_cast<float>(sf::Mouse::getPosition(window).y);
 
-				for (int i = 0; i < (int) planes.size(); i++) {//Loop through planes and see which one is being roatated
+				for (int i = 0; i < (int)planes.size(); i++) {//Loop through planes and see which one is being roatated
 					// planes.at(i).angle += 3;
 					if (Vector::getMag(Vector::sub(mouseVector, planes.at(i).pos)) < 20.0f && !gameStarted && (planes.at(i).canRotate() || inEditorMode)) { // Collision detection with a point
 						planes.at(i).angle +=
@@ -131,83 +169,227 @@ int main() {
 					}
 				}
 
-				break;
+			break;
+			
 			case (sf::Event::KeyPressed):
 				if (evnt.key.code == sf::Keyboard::R) {//Set the laser object back to the launchers center if game reset
 					Beam = Laser(launcher.pos.x + 40.0f, launcher.pos.y + 40.0f);
-					Beam.setAngle((float)launcher.angle + 180.0f, launcher.pos.x + 40.0f,
-						launcher.pos.y + 40.0f);
+					Beam.setAngle((float)launcher.angle + 180.0f, (float)launcher.pos.x + 40.0f,
+						(float)launcher.pos.y + 40.0f);
 					trail.clearArr();//Remove all the trails
 					gameStarted = false;//Game is not started because we restarted
-					gotKey = false;
+					gotKeys = false;
+					keysGotten = 0;
 					gameWon = false;
+					score = 0;
+					changeScore();
 				}
-				else if (evnt.key.code == sf::Keyboard::E && !gameStarted) {
-					isUnsaved = true;
-					inEditorMode = !inEditorMode; // Toggle between editor modes
-					if (inEditorMode) {//Always have text at top right that says editor mode or nothing
-						inEditorModeText.setString("EDITOR MODE");
-					}
-					else {
-						inEditorModeText.setString("");
-					}
-				}
+				//else if (evnt.key.code == sf::Keyboard::E && !gameStarted) {
+				//	isUnsaved = true;
+				//	inEditorMode = !inEditorMode; // Toggle between editor modes
+				//	if (inEditorMode) {//Always have text at top right that says editor mode or nothing
+				//		inEditorModeText.setString("EDITOR MODE! USE THE NUMBER KEYS TO SELECT AN OBJECT AND LEFT CLICK TO PLACE!");
+				//	}
+				//	else {
+				//		inEditorModeText.setString("PRESS 'E' TO ENABLE EDITOR MODE!");
+				//	}
+				//}
 				else if (evnt.key.code == sf::Keyboard::C) {
-					if (((clock() - timer) / (double)CLOCKS_PER_SEC * 1000 < 500) && !gameStarted) {//Check if last 'c' button was clicked 500ms before to see if double clicked
-						std::cout << "Double C" << std::endl;
-						l.deleteLevel();
+					if (inEditorMode) {
+						if (((clock() - timer) / (double)CLOCKS_PER_SEC * 1000 < 500) && !gameStarted) {//Check if last 'c' button was clicked 500ms before to see if double clicked
+							std::cout << "Double C" << std::endl;
+
+							l.clearLevel();
+						}
+						else {
+							timer = clock();
+						}
 					}
-					else {
-						timer = clock();
+
+				}
+				else if (evnt.key.code == sf::Keyboard::Escape) {
+					if (inEditorMode && !displayEditorHelp && !displayUnsaveWarning) {
+						l.saveLevel();
+						isUnsaved = false;
+						saveTooltip.setString("SAVED!");
+						isDisplayingSaved = true;
+						inEditorMode = false;
+
 					}
+					if (displayLevels) {
+						displayLevels = false;
+						typingNewLevel = false;
+					}
+					if (!gameStarted && !displayUnsaveWarning && !displayMainHelp) {
+						state = mainMenu;
+					}
+					displayMainHelp = false;
+					
 				}
 				else if (evnt.key.code == sf::Keyboard::S) {
 					if (((clock() - timer) / (double)CLOCKS_PER_SEC * 1000 < 500) && !gameStarted) {
 						l.saveLevel();
 						isUnsaved = false;
 						displayUnsaveWarning = false;
+						saveTooltip.setString("SAVED!");
+						isDisplayingSaved = true;
 					}
 					else {
-						timer = clock();
+						timer = clock();//This starts timer if not within 500ms. Means first click
 					}
 				}
 
-				else if (evnt.key.code == sf::Keyboard::Num1) {//Switch the arrow's y position to curredntly editing object sprite
+				else if (evnt.key.code == sf::Keyboard::Num1 || evnt.key.code == sf::Keyboard::Numpad1) {//Switch the arrow's y position to curredntly editing object sprite
 					currentEditingObject = 0;
-					editingButtons[1].rect.setPosition(120.0f, (currentEditingObject * 100.0f) + 120.0f);//Fancy little system here. Since currentEditingObject is an int, multiply it by the base y position
+					editingButtons[1].rect.setPosition(arrowXPosition, (currentEditingObject * 100.0f) + 120.0f);//Fancy little system here. Since currentEditingObject is an int, multiply it by the base y position
 				}
-				else if (evnt.key.code == sf::Keyboard::Num2) {
+				else if (evnt.key.code == sf::Keyboard::Num2 || evnt.key.code == sf::Keyboard::Numpad2) {
 					currentEditingObject = 1;
-					editingButtons[1].rect.setPosition(120.0f, (currentEditingObject* 100.0f) + 120.0f);
+					editingButtons[1].rect.setPosition(arrowXPosition, (currentEditingObject * 100.0f) + 120.0f);
 				}
-				else if (evnt.key.code == sf::Keyboard::Num3) {
+				else if (evnt.key.code == sf::Keyboard::Num3 || evnt.key.code == sf::Keyboard::Numpad3) {
 					currentEditingObject = 2;
-					editingButtons[1].rect.setPosition(120.0f, (currentEditingObject* 100.0f) + 120.0f);
+					editingButtons[1].rect.setPosition(arrowXPosition, (currentEditingObject * 100.0f) + 120.0f);
 				}
-				else if (evnt.key.code == sf::Keyboard::Num4) {
+				else if (evnt.key.code == sf::Keyboard::Num4 || evnt.key.code == sf::Keyboard::Numpad4) {
 					currentEditingObject = 3;
-					editingButtons[1].rect.setPosition(120.0f, (currentEditingObject* 100.0f) + 120.0f);
+					editingButtons[1].rect.setPosition(arrowXPosition, (currentEditingObject * 100.0f) + 120.0f);
 				}
-				else if (evnt.key.code == sf::Keyboard::Num5) {
+				else if (evnt.key.code == sf::Keyboard::Num5 || evnt.key.code == sf::Keyboard::Numpad5) {
 					currentEditingObject = 4;
-					editingButtons[1].rect.setPosition(120.0f, (currentEditingObject* 100.0f) + 120.0f);
+					editingButtons[1].rect.setPosition(arrowXPosition, (currentEditingObject * 100.0f) + 120.0f);
 				}
+				else if (evnt.key.code == sf::Keyboard::Enter) {
+					if (typingNewLevel) {
+						typingNewLevel = false;
+						newLevelString += ".txt";
+						l.newLevel(newLevelString);//Create the new level and add .txt file extension
+						newLevelString.clear();
+						typingLevelTextButton.spriteLocation.clear();
+						typingLevelTextButton.update();
+						updateDisplayLevels(&font);
+					
+					}
+				}
+				else if (evnt.key.code == sf::Keyboard::Left) {
+					mouseVector.x = static_cast<float>(sf::Mouse::getPosition(window).x);//Get a vector of mouse location too see which plane is being rotated
+					mouseVector.y = static_cast<float>(sf::Mouse::getPosition(window).y);
 
+					for (int i = 0; i < (int)planes.size(); i++) {//Loop through planes and see which one is being roatated
+						// planes.at(i).angle += 3;
+						if (Vector::getMag(Vector::sub(mouseVector, planes.at(i).pos)) < 20.0f && !gameStarted && (planes.at(i).canRotate() || inEditorMode)) { // Collision detection with a point
+							planes.at(i).angle += surfaceRotateSpeed * -1;
+						// positive, move one way.
+						// Otherwise the other.
+
+							planes.at(i).updatePoints();//When it is moved update it's 4 points (vertices)
+						}
+					}
+				}
+				else if (evnt.key.code == sf::Keyboard::Right) {
+					mouseVector.x = static_cast<float>(sf::Mouse::getPosition(window).x);//Get a vector of mouse location too see which plane is being rotated
+					mouseVector.y = static_cast<float>(sf::Mouse::getPosition(window).y);
+
+					for (int i = 0; i < (int)planes.size(); i++) {//Loop through planes and see which one is being roatated
+						// planes.at(i).angle += 3;
+						if (Vector::getMag(Vector::sub(mouseVector, planes.at(i).pos)) < 20.0f && !gameStarted && (planes.at(i).canRotate() || inEditorMode)) { // Collision detection with a point
+							planes.at(i).angle +=
+								evnt.mouseWheel.delta < 0
+								? surfaceRotateSpeed
+								: surfaceRotateSpeed; // If mousewheel direction is
+						// positive, move one way.
+						// Otherwise the other.
+
+							planes.at(i).updatePoints();//When it is moved update it's 4 points (vertices)
+						}
+					}
+				}
+				else if (evnt.key.code == sf::Keyboard::H) {
+					if (typingNewLevel) {
+						break;
+					}
+					if (inEditorMode) {
+						displayEditorHelp = !displayEditorHelp;
+					}
+					else {
+						displayMainHelp = !displayMainHelp;
+					}
+			
+				}
+				
 				break;
+			case(sf::Event::MouseMoved):
+				if (displayLevels) {
+					if (newLevelBtn.isClicked((float)sf::Mouse::getPosition(window).x, (float)sf::Mouse::getPosition(window).y)) {
+						newLevelBtn.rect.setFillColor(sf::Color::Red);
+					}
+					else {
+						newLevelBtn.rect.setFillColor(sf::Color::White);
+					}
+					for (unsigned int i = 0; i < levelsVector.size(); i++) {
+						if (levelsVector.at(i).isClicked((float)sf::Mouse::getPosition(window).x, (float)sf::Mouse::getPosition(window).y)){
+							levelsVector.at(i).rect.setFillColor(sf::Color::Red);
+						}
+						else{ 
+							levelsVector.at(i).rect.setFillColor(sf::Color::White);
+						}
+					}
+				}
+					break;
+
 			case (sf::Event::MouseButtonPressed):
 				/*std::cout << (clock() - t1) / (double)CLOCKS_PER_SEC * 1000 <<
 				 * std::endl;*/
 
 				if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left)) {
 					if (state == mainMenu) {
-						if (buttons[0].isClicked((float)sf::Mouse::getPosition(window).x, (float)sf::Mouse::getPosition(window).y)) { // Play button
-							state = inGame;
+						if (buttons[0].isClicked((float)sf::Mouse::getPosition(window).x, (float)sf::Mouse::getPosition(window).y) && !displayLevels) { // Play button
+							if (levelSelected) {
+								state = inGame;
+							} 
+							else {
+								displayNoLevelSelected = true;
+								timer = clock();
+							}
+							
 						}
-						else if (buttons[1].isClicked(
-							(float)sf::Mouse::getPosition(window).x,
-							(float)sf::Mouse::getPosition(window).y)) {
-							std::cout << "Hello";
+						else if (buttons[1].isClicked((float)sf::Mouse::getPosition(window).x, (float)sf::Mouse::getPosition(window).y)) {//Editor button
+							
+							if (levelSelected) {
+								state = inGame;
+								inEditorMode = true;
+								isUnsaved = true;
+							}
+							else {
+								displayNoLevelSelected = true;
+								timer = clock();
+							}
 						}
+						else if (buttons[2].isClicked((float)sf::Mouse::getPosition(window).x, (float)sf::Mouse::getPosition(window).y)){//Clicked selecta level
+							updateDisplayLevels(&font);
+							
+							
+						}
+						else if (displayLevels) {//Clicked on a Level
+							if (newLevelBtn.isClicked((float)sf::Mouse::getPosition(window).x, (float)sf::Mouse::getPosition(window).y)) {
+								typingNewLevel = true;
+			
+							}
+							else {
+								for (unsigned int i = 0; i < levelsVector.size(); i++) {
+									if (levelsVector.at(i).isClicked((float)sf::Mouse::getPosition(window).x, (float)sf::Mouse::getPosition(window).y)) {
+										l = Level(levelsVector.at(i).spriteLocation + ".txt");
+										
+										applyTextures();
+										applyTextures(true);
+										levelSelected = true;
+										displayLevels = false;
+									}
+								}
+							}
+							
+						}
+						
 					}
 					else if (displayUnsaveWarning) {//Check if unsaved work button is clicked to close without saving
 						if (unsavedWorkText.isClicked((float)sf::Mouse::getPosition(window).x, (float)sf::Mouse::getPosition(window).y)) {
@@ -220,12 +402,14 @@ int main() {
 							planes.emplace_back(Surface((float)sf::Mouse::getPosition(window).x,
 								(float)sf::Mouse::getPosition(window).y, 90.0f,
 								false));//Emplace back a non-rotatable surface. Emplace creates the object inside the vector instead of creating it here then creating it there
+							applyTextures(true);
 							break;
 
 						case(1):
 							planes.emplace_back(Surface((float)sf::Mouse::getPosition(window).x,
 								(float)sf::Mouse::getPosition(window).y, 90.0f,
 								true));//Emplace back rotatable surface
+							applyTextures(true);
 							break;
 
 						case(2):
@@ -234,9 +418,9 @@ int main() {
 							launcher.updateSprite();
 							break;
 						case(3):
-							key.pos.x = (float)sf::Mouse::getPosition(window).x - key.length / 2;
-							key.pos.y = (float)sf::Mouse::getPosition(window).y - key.length / 2;
-							key.updateSprite();
+						
+							keys.emplace_back(Key((float)sf::Mouse::getPosition(window).x - keys.back().length / 2.0f, (float)sf::Mouse::getPosition(window).y - keys.back().length / 2));
+							applyTextures();
 							break;
 						case(4):
 							endPoint.pos.x = (float)sf::Mouse::getPosition(window).x - endPoint.length / 2;
@@ -254,8 +438,8 @@ int main() {
 							Beam =
 								Laser(launcher.pos.x + 40.0f,
 									launcher.pos.y + 40.0f); // 40.0f is launcher width / 2
-							Beam.setAngle((float)launcher.angle + 180.0f, launcher.pos.x + 40.0f,
-								launcher.pos.y + 40.0f);
+							Beam.setAngle((float)launcher.angle + 180.0f, (float)launcher.pos.x + 40.0f,
+								(float)launcher.pos.y + 40.0f);
 							firstTime = false;
 							gameStarted = true;
 						}
@@ -264,30 +448,111 @@ int main() {
 				else if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Right)) {//Delete the surface that was right clicked
 					mouseVector.x = static_cast<float>(sf::Mouse::getPosition(window).x);
 					mouseVector.y = static_cast<float>(sf::Mouse::getPosition(window).y);
-
-					for (unsigned int i = 0; i < planes.size(); i++) {
-						if (Vector::getMag(Vector::sub(mouseVector, planes.at(i).pos)) <
-							20.0f) {//20.0f diameter circle around middle of plane to check for collision
-							std::cout << "Clicked on a suraface" << std::endl;
-							planes.erase(planes.begin() + i);//Remove the one  here
+					if (inEditorMode) {
+						for (unsigned int i = 0; i < planes.size(); i++) {
+							if (Vector::getMag(Vector::sub(mouseVector, planes.at(i).pos)) <
+								20.0f) {//20.0f diameter circle around middle of plane to check for collision
+								planes.erase(planes.begin() + i);//Remove the one  here
+								applyTextures(true);
+								break;
+							}
 						}
+						for (unsigned int i = 0; i < keys.size(); i++) {
+							if (Vector::getMag(Vector::sub(mouseVector, keys.at(i).pos)) < 20.0f) {
+								keys.erase(keys.begin() + i);
+								applyTextures();
+								break;
+							}
+						}
+						
 					}
+					else if (displayLevels) {
+						for (int i = 0; i < levelsVector.size(); i++) {
+							//std::cout << "i: " + i << std::endl;
+							if (levelsVector.at(i).isClicked((float)sf::Mouse::getPosition(window).x, (float)sf::Mouse::getPosition(window).y)) {
+								std::cout << "Removing " + levelsVector.at(i).spriteLocation << std::endl;
+								Level::deleteLevel(levelsVector.at(i).spriteLocation);
+								updateDisplayLevels(&font);
+							}
+							else {
+								timer = clock();
+							}
+						}
+							
+					}
+					
 				}
 
 				break;
+				case(sf::Event::TextEntered):
+					if (((evnt.text.unicode < 128 && evnt.text.unicode > 31) || evnt.text.unicode == 8) && typingNewLevel) {
+						
+						/*
+						Bug where the user clicked enter after typing the name of the variable, then enter ascii code was put into string. It messed up string, and didn't 
+						allow to create a new level. Then I made a range to make sure the enter key is out of range. Only space bar ascii code and above.
+						Since backspace is below 31, also make exception for it. Then make sure 'typingNewLevel' check other wise any key entered throughout the program
+						is being put into the string. 		
+
+						Make sure to have this enabled, the typing new level var. 
+						Otherwise we only make sure if ascii is below 128. 
+						So when the user clicks enter it puts that enter into the string too. Make sure ascii code is within range, 
+						expent space becuz it is below the characters
+						Then check if the the last char is space and the current adding char is space. if so break out. No more than 1 space.
+						Must do if statement inside because referencing the last element of the string can sometimes be undefined. Since the string is empty
+						Then check if the backsapce was pressed and the string has chars in it. If so delete last char.
+						If the backspace was pressed with 0 chars then it just adds a backspace char into the string, so we check after that to make sure it doesnt happen*/
+						if (newLevelString.length() > 0 ) {
+							if ((int)newLevelString[newLevelString.length() - 1] == (int)evnt.text.unicode && (int)evnt.text.unicode == 32) {
+								break;
+							}
+						}
+							if (evnt.text.unicode == 8 && typingLevelTextButton.spriteLocation.length() > 0) {
+								newLevelString.pop_back();
+								typingLevelTextButton.spriteLocation.pop_back();
+								typingLevelTextButton.update();
+							}
+							else if(evnt.text.unicode != 8){
+								newLevelString += evnt.text.unicode;
+								typingLevelTextButton.spriteLocation += evnt.text.unicode;
+								typingLevelTextButton.update();
+
+							}
+		
+					}
+
+				break;
+				
 			}
 		}
-
+		if (isDisplayingSaved && ((clock() - timer) / (double)CLOCKS_PER_SEC * 1000 > 3500)) {
+		
+			isDisplayingSaved = false;
+			saveTooltip.setString("DOUBLE TAP 'S' TO SAVE LEVEL! CLICK 'H' FOR HELP");
+		}
 		window.clear(sf::Color::Black);
 		switch (state) {
 		case (inGame):
-			if (gameStarted) {
+			if (gameStarted) { 
 				trail.getBeamPos(Beam);
-				if (key.checkCollision(Beam)) {
+				/*if (key.checkCollision(Beam)) {
 					std::cout << "Key!" << std::endl;
-					gotKey = true;
+					gotKeys = true;
+				}*/
+				for (int i = 0; i < keys.size(); i++) {//Loop through the keys and if beam hit it then set the keys 'isGotten' property to true. 
+					if (keys.at(i).checkCollision(Beam)) {
+						keys.at(i).isGotten = true;
+					}
 				}
-				if (endPoint.checkCollision(Beam) && gotKey) {
+				keysGotten = 0;
+				for (int i = 0; i < keys.size(); i++) {//This way when beam hits key the keysGotten is not incremented like 100 times
+					if (keys.at(i).isGotten) {
+						keysGotten++;
+					}
+				}
+				if (keysGotten == keys.size()) {//If all keys gotten then make game winnable
+					gotKeys = true;
+				}
+				if (endPoint.checkCollision(Beam) && gotKeys) {
 					std::cout << "EndPoint!" << std::endl;
 					gameWon = true;
 				}
@@ -299,22 +564,30 @@ int main() {
 				launcher.setAngle((float)sf::Mouse::getPosition(window).x,
 					(float)sf::Mouse::getPosition(window).y);
 			}
-			for (unsigned int i = 0; i < planes.size();
-				i++) { // Optimize where draw points goes. right now it is in the
+			for (unsigned int i = 0; i < planes.size(); i++) { // Optimize where draw points goes. right now it is in the
 			 // move() method.
 				if (gameStarted) {
-					planes.at(i).checkCollision(Beam);
+					if (planes.at(i).checkCollision(Beam)) {
+						
+						score++;
+						changeScore();
+					}
 				}
 				// planes.at(i).drawPoints();
 
 				window.draw(planes.at(i).plane);
+				window.draw(scoreText.rect);
+				window.draw(scoreText.text);
+
+				
 				// window.draw(planes.at(i).point1);
 			}
 			window.draw(trail.draw()); // This order matters. Draw trail after the
 			// surface so we can see the trail when laser
 			// goes "through" surface as a prism
-			window.draw(
-				key.shape); // Draw key and endpoint at end so laser is behind them
+			for (int i = 0; i < keys.size(); i++) {
+				window.draw(keys.at(i).shape);
+			}
 			window.draw(endPoint.shape);
 
 			// window.draw(Beam.beam);
@@ -325,7 +598,7 @@ int main() {
 			break;
 
 		case (mainMenu):
-			window.draw(titleText);
+		//Draw TitleText
 			for (int i = 0; i < buttonsLength; i++) {
 				window.draw(buttons[i].rect);
 			}
@@ -336,18 +609,94 @@ int main() {
 			for (int i = 0; i < editingButtonsLength; i++) {
 				window.draw(editingButtons[i].rect);
 			}
+			cursorObject[currentEditingObject].rect.setPosition(sf::Vector2f(sf::Mouse::getPosition(window).x - cursorObject[currentEditingObject].rect.getSize().x / 2, 
+			sf::Mouse::getPosition(window).y - cursorObject[currentEditingObject].rect.getSize().y / 2));//Set the sprite to the cursor's position in the middle
+
+			window.draw(cursorObject[currentEditingObject].rect);
 		}
+	
 		// Display winnerText
-		if (gameWon) {
+		if (gameWon && state == inGame) {
+			winnerText.setString("Won with a score of: " + scoreText.text.getString());
 			window.draw(winnerText);
 		}
-
+		if (displayLevels) {
+			window.draw(newLevelBtn.rect);
+			window.draw(newLevelBtn.text);
+			if (typingNewLevel) {
+				window.draw(typingLevelTextButton.rect);
+				window.draw(typingLevelTextButton.text);
+			}
+		
+			for (unsigned int i = 0; i < levelsVector.size(); i++) {
+				window.draw(levelsVector.at(i).rect);
+				window.draw(levelsVector.at(i).text);
+			}
+		}
 		if (displayUnsaveWarning) {
 			window.draw(unsavedWorkText.rect);
 		}
-		window.draw(inEditorModeText);
+		if (displayMainHelp) {
+			window.draw(mainHelpButton.rect);
+		}
+		if (displayEditorHelp) {
+			window.draw(editorHelpButton.rect);
+		}
+		if (displayNoLevelSelected) {
+			if (((clock() - timer) / (double)CLOCKS_PER_SEC * 1000 < 2500)) {
+				window.draw(noLevelSelectedButton.rect);
+			}
+			else {
+				displayNoLevelSelected = false;
+			}
+			
+		
+		}
+		window.draw(saveTooltip);
+		
 		window.display(); // Display the window
 	}
 
 	return 0;
+}
+
+void applyTextures(bool onlyPlanes){//This is to ensure that the planes texture refresh. Vector reorganizes memory alot so each time a new one is added we must re apply textures. It randmoly just recreates the surfaces so the textures get taken off
+	if (onlyPlanes) {
+		for (int i = 0; i < planes.size(); i++) {
+			planes.at(i).applyTexture();
+		}
+	}
+	else {
+		
+		endPoint.applyTexture();
+		launcher.applyTexture();
+	/*	for (int i = 0; i < planes.size(); i++) {
+			planes.at(i).applyTexture();
+		}*/
+		for (int i = 0; i < keys.size(); i++) {
+			keys.at(i).applyTexture();
+		}
+	}
+
+	
+}
+void changeScore() {
+	scoreText.text.setString(std::to_string(score));
+}
+
+void updateDisplayLevels(sf::Font* font) {//Must pass in a pointer to the font because the font is declared in the main function and this is out of scope. For some reason cant make it global so I just passed it in as a pointer. and did not dereference becasue the applyTexture function needs a pointer anyways
+	//List levels
+	levelsVector.clear();//Clear otherwise buttons are being stacked upon each other each time.
+	std::string path = "levels";
+	int i = 1;
+	for (const auto& entry : std::experimental::filesystem::directory_iterator(path)) {//Loop through everything in levels folder
+		std::string levelName = entry.path().string().substr(7);//Cut off the "levels/" part
+		levelName = levelName.substr(0, levelName.find(".txt"));//Go up until the .txt
+		levelsVector.emplace_back(Button(70.0f, i * 50.0f, 100.0f, 40.0f, levelName));//Put it in the vector
+		levelsVector.back().applyTexture(font);//Pass the main font as a pointer to the button. .back() Just referes to the latest added button
+		i++;
+
+	}
+	
+	displayLevels = true;
 }
