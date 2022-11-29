@@ -53,5 +53,6 @@ bool Button::isClicked(float mouseX, float mouseY) {//Check if mouse is at butto
 void Button::update() {
 	width = (spriteLocation.length() + 1) * 15;
 	rect.setSize(sf::Vector2f(width, height));
+	rect.setPosition(sf::Vector2f(pos.x, pos.y));
 	text.setString(spriteLocation);
 }
